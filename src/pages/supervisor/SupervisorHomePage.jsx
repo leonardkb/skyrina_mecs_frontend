@@ -1,3 +1,5 @@
+// SupervisorHomePage.jsx - Fixed version with better data handling
+
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
@@ -21,7 +23,7 @@ export default function SupervisorHomePage() {
   const [tickets, setTickets] = useState([])
   const [lines, setLines] = useState([])
   const [mechanics, setMechanics] = useState([])
-  const [activeTab, setActiveTab] = useState('tickets') // 'tickets', 'lines', 'mechanics'
+  const [activeTab, setActiveTab] = useState('tickets')
 
   useEffect(() => {
     fetchDashboardData()
@@ -29,100 +31,138 @@ export default function SupervisorHomePage() {
 
   // Helper function to get afectacion score per ticket based on resolution minutes
   const getAfectacionScore = (minutes) => {
-    if (minutes === null || minutes === undefined) return 0
-    if (minutes < 7) return 100
-    if (minutes <= 15) return 50
-    return 0
-  }
+  if (minutes === null || minutes === undefined) return 0
+  if (minutes <= 7) return 100
+  if (minutes >= 15) return 50
+  return 100 - (6.25 * (minutes - 7))
+}
+
+  // Add this new function for daily aggregation (same as BonoPage)
+const calculateDailyScores = (tickets) => {
+  if (!tickets || tickets.length === 0) return 0
+  
+  const days = {}
+  
+  tickets.forEach(ticket => {
+    const completedDate = ticket.completed_at || ticket.closed_at
+    if (completedDate && ticket.status === 'cerrado') {
+      const date = new Date(completedDate)
+      const dateKey = date.toISOString().split('T')[0]
+      
+      if (!days[dateKey]) {
+        days[dateKey] = {
+          totalMinutes: 0,
+          ticketCount: 0
+        }
+      }
+      days[dateKey].totalMinutes += (ticket.resolution_minutes || 0)
+      days[dateKey].ticketCount += 1
+    }
+  })
+  
+  let totalScore = 0
+  let dayCount = 0
+  
+  Object.values(days).forEach(day => {
+    const avgMinutes = day.totalMinutes / day.ticketCount
+    let dayScore
+    if (avgMinutes <= 7) dayScore = 100
+    else if (avgMinutes >= 15) dayScore = 50
+    else dayScore = 100 - (6.25 * (avgMinutes - 7))
+    
+    totalScore += dayScore
+    dayCount++
+  })
+  
+  return dayCount > 0 ? totalScore / dayCount : 0
+}
 
   const fetchDashboardData = async () => {
     try {
+      console.log('Fetching dashboard data...')
+      
       const [statsRes, linesRes, mechanicsRes] = await Promise.all([
         axios.get('http://localhost:8000/supervisor/dashboard/stats'),
         axios.get('http://localhost:8000/supervisor/lines/performance'),
         axios.get('http://localhost:8000/supervisor/mechanics/performance'),
       ])
 
+      console.log('Stats response:', statsRes.data)
+
       if (statsRes.data.success) {
-        const dashboardStats = statsRes.data.stats
-        const dashboardKpis = statsRes.data.kpis
+        const dashboardStats = statsRes.data.stats || {}
         
-        // Recalculate afectacion KPI based on resolution minutes scoring
-        const tickets = dashboardStats.tickets || statsRes.data.tickets || []
-        const closedTickets = tickets.filter(t => t.status === 'cerrado')
+        // IMPORTANT: Get tickets from the correct location
+        // Try multiple possible locations where tickets might be
+        let allTickets = []
+        if (dashboardStats.tickets && Array.isArray(dashboardStats.tickets)) {
+          allTickets = dashboardStats.tickets
+        } else if (statsRes.data.tickets && Array.isArray(statsRes.data.tickets)) {
+          allTickets = statsRes.data.tickets
+        } else if (dashboardStats.recent_tickets && Array.isArray(dashboardStats.recent_tickets)) {
+          allTickets = dashboardStats.recent_tickets
+        }
         
-        let totalAfectacionScore = 0
+        console.log('Found tickets:', allTickets.length)
+        console.log('Sample ticket:', allTickets[0])
+        
+        const closedTickets = allTickets.filter(t => t.status === 'cerrado')
+        console.log('Closed tickets:', closedTickets.length)
+        
+        // Calculate afectacion using daily aggregation
+        const calculatedAfectacionRate = Math.round(calculateDailyScores(closedTickets))
+        console.log('Calculated afectacion rate:', calculatedAfectacionRate)
+        
+        // For debugging - log each closed ticket's resolution minutes
         closedTickets.forEach(ticket => {
-          totalAfectacionScore += getAfectacionScore(ticket.resolution_minutes)
+          console.log(`Ticket ${ticket.id}: ${ticket.resolution_minutes} min, completed_at: ${ticket.completed_at || ticket.closed_at}`)
         })
-        
-        const calculatedAfectacionRate = closedTickets.length > 0
-          ? Math.round(totalAfectacionScore / closedTickets.length)
-          : 0
         
         setStats({
           avgClosing: dashboardStats.avgClosing || 0,
           activeTickets: dashboardStats.activeTickets || 0,
           pendingValidation: dashboardStats.pendingValidation || 0,
           totalTickets: dashboardStats.totalTickets || 0,
-          closedTickets: dashboardStats.closedTickets || 0,
+          closedTickets: dashboardStats.closedTickets || closedTickets.length,
         })
         
         setKpis({
           afectacion: calculatedAfectacionRate,
-          cambios: dashboardKpis?.cambios || 0,
-          orden: dashboardKpis?.orden || 0,
+          cambios: dashboardStats.cambios_kpi || statsRes.data.kpis?.cambios || 0,
+          orden: dashboardStats.orden_kpi || statsRes.data.kpis?.orden || 0,
         })
         
-        setTickets(statsRes.data.tickets || [])
+        setTickets(allTickets)
+      } else {
+        console.error('Stats response success false:', statsRes.data)
       }
 
       if (linesRes.data.success) {
         const linesData = linesRes.data.lines || []
-        // Recalculate line afectacion scores
         const updatedLines = linesData.map(line => ({
           ...line,
-          afectacion_rate: calculateLineAfectacionRate(line.tickets || [])
+          afectacion_rate: Math.round(calculateDailyScores(line.tickets || []))
         }))
         setLines(updatedLines)
+      } else {
+        console.error('Lines response error:', linesRes.data)
       }
 
       if (mechanicsRes.data.success) {
         const mechanicsData = mechanicsRes.data.mechanics || []
-        // Recalculate mechanic afectacion scores
         const updatedMechanics = mechanicsData.map(mech => ({
           ...mech,
-          afectacion_rate: calculateMechanicAfectacionRate(mech.tickets || [])
+          afectacion_rate: Math.round(calculateDailyScores(mech.tickets || []))
         }))
         setMechanics(updatedMechanics)
+      } else {
+        console.error('Mechanics response error:', mechanicsRes.data)
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
       setLoading(false)
     }
-  }
-
-  const calculateLineAfectacionRate = (tickets) => {
-    const closedTickets = tickets.filter(t => t.status === 'cerrado')
-    if (closedTickets.length === 0) return 0
-    
-    let totalScore = 0
-    closedTickets.forEach(ticket => {
-      totalScore += getAfectacionScore(ticket.resolution_minutes)
-    })
-    return Math.round(totalScore / closedTickets.length)
-  }
-
-  const calculateMechanicAfectacionRate = (tickets) => {
-    const closedTickets = tickets.filter(t => t.status === 'cerrado')
-    if (closedTickets.length === 0) return 0
-    
-    let totalScore = 0
-    closedTickets.forEach(ticket => {
-      totalScore += getAfectacionScore(ticket.resolution_minutes)
-    })
-    return Math.round(totalScore / closedTickets.length)
   }
 
   const getPriorityColor = (priority) => {
@@ -165,7 +205,6 @@ export default function SupervisorHomePage() {
   return (
     <SupervisorLayout>
       <div className="max-w-7xl mx-auto px-3">
-        {/* Header - Reduced spacing */}
         <div className="mb-4">
           <h1 className="text-xl font-bold text-slate-800">
             Dashboard Supervisor
@@ -175,7 +214,6 @@ export default function SupervisorHomePage() {
           </p>
         </div>
 
-        {/* KPI Cards - Compact grid with smaller cards */}
         <div className="grid grid-cols-2 gap-2 mb-4">
           <MetricCard
             title="Tiempo Promedio"
@@ -200,24 +238,22 @@ export default function SupervisorHomePage() {
           />
         </div>
 
-        {/* KPI Bars - Compact version with updated afectacion info */}
         <div className="bg-white rounded-xl border p-3 mb-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-bold text-slate-800">
               KPIs Globales - Semana
             </h2>
             <div className="flex gap-1 text-[10px]">
-              <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-700">&lt;7min</span>
-              <span className="px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700">7-15min</span>
-              <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700">&gt;15min</span>
+              <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-700">7 min = 100%</span>
+              <span className="px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700">15 min = 50%</span>
             </div>
           </div>
           <div className="space-y-3">
             <KPIBar
-              label="Afectación (Tiempo de Resolución)"
+              label="Afectación (Tiempo de Resolución Diario)"
               value={kpis.afectacion}
               color="bg-blue-600"
-              detail="Promedio ponderado por ticket"
+              detail="Promedio diario: Score = 100 - 6.25 × (avg_minutos - 7)"
             />
             <KPIBar
               label="Cambios de Estilo"
@@ -232,9 +268,13 @@ export default function SupervisorHomePage() {
               detail="Tickets completados en ≤7 min"
             />
           </div>
+          <div className="mt-3 pt-2 border-t border-gray-100">
+            <p className="text-[10px] text-gray-400 text-center">
+              * La afectación se calcula promediando el puntaje diario de cada día trabajado
+            </p>
+          </div>
         </div>
 
-        {/* Tabs - More compact, better for touch */}
         <div className="flex gap-1 mb-3 bg-gray-100 rounded-xl p-1">
           <button
             onClick={() => setActiveTab('tickets')}
@@ -268,7 +308,6 @@ export default function SupervisorHomePage() {
           </button>
         </div>
 
-        {/* Tickets Tab - Compact cards */}
         {activeTab === 'tickets' && (
           <div className="space-y-2">
             {tickets.length === 0 ? (
@@ -278,7 +317,6 @@ export default function SupervisorHomePage() {
             ) : (
               tickets.map(ticket => (
                 <div key={ticket.id} className="bg-white rounded-xl border p-3 active:bg-gray-50 transition-colors">
-                  {/* Header with badges in one row */}
                   <div className="flex flex-wrap gap-1 mb-2">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold text-white ${getPriorityColor(ticket.prioridad)}`}>
                       {ticket.prioridad?.toUpperCase() || 'NORMAL'}
@@ -294,7 +332,6 @@ export default function SupervisorHomePage() {
                     )}
                   </div>
                   
-                  {/* Title and details */}
                   <h3 className="text-base font-bold text-slate-800 leading-tight">
                     {ticket.titulo}
                   </h3>
@@ -315,7 +352,6 @@ export default function SupervisorHomePage() {
           </div>
         )}
 
-        {/* Lines Tab - Compact table with afectacion column */}
         {activeTab === 'lines' && (
           <div className="bg-white rounded-xl border overflow-hidden">
             <div className="overflow-x-auto">
@@ -372,7 +408,6 @@ export default function SupervisorHomePage() {
           </div>
         )}
 
-        {/* Mechanics Tab - With afectacion column */}
         {activeTab === 'mechanics' && (
           <div className="bg-white rounded-xl border overflow-hidden">
             <div className="overflow-x-auto">
@@ -439,7 +474,6 @@ export default function SupervisorHomePage() {
   )
 }
 
-// Compact Metric Card - Reduced padding and text sizes
 function MetricCard({ title, value, unit, color }) {
   return (
     <div className="bg-white rounded-xl border p-2">
@@ -452,7 +486,6 @@ function MetricCard({ title, value, unit, color }) {
   )
 }
 
-// Compact KPI Bar - Reduced spacing
 function KPIBar({ label, value, color, detail }) {
   return (
     <div>
