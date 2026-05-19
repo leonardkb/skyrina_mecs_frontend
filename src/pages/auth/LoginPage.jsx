@@ -20,69 +20,71 @@ export default function LoginPage() {
   }
 
   const handleLogin = async (e) => {
-    e.preventDefault()
-    setError('')
+  e.preventDefault()
+  setError('')
 
-    if (!formData.username || !formData.password) {
-      setError('Completa todos los campos')
+  if (!formData.username || !formData.password) {
+    setError('Completa todos los campos')
+    return
+  }
+
+  try {
+    setLoading(true)
+
+    // CORRECT URL - includes /api/v1 prefix
+    const response = await fetch('http://localhost:8000/api/v1/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: formData.username,
+        password: formData.password,
+      }),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      setError(data.detail || 'Login failed')
+      setLoading(false)
       return
     }
 
-    try {
-      setLoading(true)
+    // SAVE USER
+    localStorage.setItem('user', JSON.stringify(data.user))
 
-      const response = await fetch('http://127.0.0.1:8000/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: formData.username,
-          password: formData.password,
-        }),
-      })
+    // ROLE-BASED NAVIGATION
+    const role = data.user.role
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        setError(data.detail || 'Login failed')
-        setLoading(false)
-        return
-      }
-
-      // SAVE USER
-      localStorage.setItem('user', JSON.stringify(data.user))
-
-      // ROLE-BASED NAVIGATION
-      const role = data.user.role
-
-      // JEFE LINEA
-      if (role === 'jefe_linea') {
-        const lineaNumber = data.user.username.split('_')[2]
-        navigate(`/jefe-linea/${lineaNumber}`)
-      }
-      // JEFE MECANICOS
-      else if (role === 'jefe_mecanicos') {
-        navigate('/jefe-mec')
-      }
-      // MECANICO
-      else if (role === 'mecanico') {
-        navigate('/mecanico')
-      }
-      // SUPERVISOR
-      else if (role === 'supervisor') {
-        navigate('/supervisor')
-      }
-      // RH
-      else if (role === 'rh') {
-        navigate('/rh')
-      }
-    } catch (err) {
-      setError('No se pudo conectar al servidor')
-    } finally {
-      setLoading(false)
+    // JEFE LINEA
+    if (role === 'jefe_linea') {
+      const lineaNumber = data.user.username.split('_')[2]
+      navigate(`/jefe-linea/${lineaNumber}`)
     }
+    // JEFE MECANICOS
+    else if (role === 'jefe_mecanicos') {
+      navigate('/jefe-mec')
+    }
+    // MECANICO
+    else if (role === 'mecanico') {
+      navigate('/mecanico')
+    }
+    // SUPERVISOR
+    else if (role === 'supervisor') {
+      navigate('/supervisor')
+    }
+    // RH
+    else if (role === 'rh') {
+      navigate('/rh')
+    }
+  } catch (err) {
+    console.error('Login error:', err)
+    setError('No se pudo conectar al servidor')
+  } finally {
+    setLoading(false)
   }
+}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-orange-50 flex items-center justify-center p-3">

@@ -26,7 +26,7 @@ export default function DashboardMecPage() {
   const fetchTickets = async () => {
     try {
       const response = await axios.get(
-        'http://localhost:8000/jefe-mecanicos/tickets/pendientes'
+        'http://localhost:8000/api/v1/jefe-mecanicos/tickets/pendientes'
       )
       console.log('Active tickets response:', response.data)
       const activeTickets = response.data.tickets || []
@@ -39,55 +39,79 @@ export default function DashboardMecPage() {
   }
 
   const fetchMechanics = async () => {
-    try {
-      const response = await axios.get(
-        'http://localhost:8000/auth/users'
-      )
-      console.log('Users response:', response.data)
+  try {
+    const response = await axios.get('http://localhost:8000/api/v1/auth/users')
+    console.log('Users response:', response.data)
 
-      const mechanicsList = (response.data.users || []).filter(
-        user => user.role === 'mecanico'
-      )
-      
-      const mechanicsWithLoad = await Promise.all(
-        mechanicsList.map(async (mechanic) => {
-          try {
-            const ticketsResponse = await axios.get(
-              `http://localhost:8000/jefe-mecanicos/tickets/mecanico/${mechanic.id}`
-            )
-            return {
-              ...mechanic,
-              tickets: ticketsResponse.data.tickets?.length || 0,
-            }
-          } catch {
-            return {
-              ...mechanic,
-              tickets: 0,
-            }
-          }
-        })
-      )
-      
-      setMechanics(mechanicsWithLoad)
-      
-      const locations = {}
-      mechanicsList.forEach(mechanic => {
-        locations[mechanic.id] = mechanic.current_location || 'piso'
-      })
-      setMechanicLocations(locations)
-      
-      return mechanicsWithLoad
-      
-    } catch (error) {
-      console.log('Error fetching mechanics:', error)
+    // Debug: Log all roles to see what you're getting
+    if (response.data && response.data.users) {
+      console.log('All user roles:', response.data.users.map(u => ({ 
+        nombre: u.nombre, 
+        role: u.role,
+        roleType: typeof u.role 
+      })))
+    }
+
+    // More flexible filtering - check for 'mecanico' in different formats
+    const mechanicsList = (response.data.users || []).filter(user => {
+      const roleValue = (user.role || '').toString().toLowerCase()
+      return roleValue === 'mecanico' || roleValue === 'mecánico'
+    })
+    
+    console.log('Filtered mechanics count:', mechanicsList.length)
+    console.log('Filtered mechanics:', mechanicsList)
+
+    if (mechanicsList.length === 0) {
+      console.warn('No mechanics found - check your database')
+      setMechanics([])
       return []
     }
+
+    const mechanicsWithLoad = await Promise.all(
+      mechanicsList.map(async (mechanic) => {
+        try {
+          const ticketsResponse = await axios.get(
+            `http://localhost:8000/api/v1/jefe-mecanicos/tickets/mecanico/${mechanic.id}`
+          )
+          return {
+            ...mechanic,
+            tickets: ticketsResponse.data.tickets?.length || 0,
+          }
+        } catch (error) {
+          console.log(`Error fetching tickets for ${mechanic.nombre}:`, error)
+          return {
+            ...mechanic,
+            tickets: 0,
+          }
+        }
+      })
+    )
+    
+    setMechanics(mechanicsWithLoad)
+    
+    const locations = {}
+    mechanicsWithLoad.forEach(mechanic => {
+      locations[mechanic.id] = mechanic.current_location || 'piso'
+    })
+    setMechanicLocations(locations)
+    
+    return mechanicsWithLoad
+    
+  } catch (error) {
+    console.error('Error fetching mechanics:', error)
+    if (error.response) {
+      console.error('Response status:', error.response.status)
+      console.error('Response data:', error.response.data)
+    }
+    setMechanics([])
+    return []
   }
+}
 
   const fetchCompletedTickets = async () => {
     try {
       const response = await axios.get(
-        'http://localhost:8000/jefe-mecanicos/tickets/completados'
+        'http://localhost:8000/api/v1/jefe-mecanicos/tickets/completados'
       )
       console.log('All completed/validated/closed tickets response:', response.data)
       const allTickets = response.data.tickets || []
@@ -157,7 +181,7 @@ export default function DashboardMecPage() {
       const user = JSON.parse(localStorage.getItem('user'))
       
       const response = await axios.post(
-        'http://localhost:8000/jefe-mecanicos/tickets/asignar',
+        'http://localhost:8000/api/v1/jefe-mecanicos/tickets/asignar',
         null,
         {
           params: {
@@ -183,7 +207,7 @@ export default function DashboardMecPage() {
       const user = JSON.parse(localStorage.getItem('user'))
       
       await axios.post(
-        'http://localhost:8000/jefe-mecanicos/tickets/reasignar',
+        'http://localhost:8000/api/v1/jefe-mecanicos/tickets/reasignar',
         null,
         {
           params: {
@@ -206,7 +230,7 @@ export default function DashboardMecPage() {
   const changeMechanicLocation = async (mechanicId, location) => {
     try {
       await axios.post(
-        'http://localhost:8000/jefe-mecanicos/mecanicos/location',
+        'http://localhost:8000/api/v1/jefe-mecanicos/mecanicos/location',
         null,
         {
           params: {

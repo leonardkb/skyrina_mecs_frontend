@@ -1,4 +1,4 @@
-// SupervisorHomePage.jsx - Fixed version with better data handling
+// SupervisorHomePage.jsx - Fixed version with correct formula and debug logging
 
 import { useEffect, useState } from 'react'
 import axios from 'axios'
@@ -24,67 +24,104 @@ export default function SupervisorHomePage() {
   const [lines, setLines] = useState([])
   const [mechanics, setMechanics] = useState([])
   const [activeTab, setActiveTab] = useState('tickets')
+  const [debugInfo, setDebugInfo] = useState(null)
 
   useEffect(() => {
     fetchDashboardData()
   }, [])
 
-  // Helper function to get afectacion score per ticket based on resolution minutes
+  // ==========================================
+  // CORRECTED FORMULA: 
+  // ≤7 min = 100%
+  // 7-15 min = 100 - 6.25 × (minutes - 7)
+  // ≥15 min = 0%
+  // ==========================================
   const getAfectacionScore = (minutes) => {
-  if (minutes === null || minutes === undefined) return 0
-  if (minutes <= 7) return 100
-  if (minutes >= 15) return 50
-  return 100 - (6.25 * (minutes - 7))
-}
+    if (minutes === null || minutes === undefined) return 0
+    if (minutes <= 7) return 100
+    if (minutes >= 15) return 0
+    return 100 - (6.25 * (minutes - 7))
+  }
 
-  // Add this new function for daily aggregation (same as BonoPage)
-const calculateDailyScores = (tickets) => {
-  if (!tickets || tickets.length === 0) return 0
-  
-  const days = {}
-  
-  tickets.forEach(ticket => {
-    const completedDate = ticket.completed_at || ticket.closed_at
-    if (completedDate && ticket.status === 'cerrado') {
-      const date = new Date(completedDate)
-      const dateKey = date.toISOString().split('T')[0]
-      
-      if (!days[dateKey]) {
-        days[dateKey] = {
-          totalMinutes: 0,
-          ticketCount: 0
-        }
-      }
-      days[dateKey].totalMinutes += (ticket.resolution_minutes || 0)
-      days[dateKey].ticketCount += 1
-    }
-  })
-  
-  let totalScore = 0
-  let dayCount = 0
-  
-  Object.values(days).forEach(day => {
-    const avgMinutes = day.totalMinutes / day.ticketCount
-    let dayScore
-    if (avgMinutes <= 7) dayScore = 100
-    else if (avgMinutes >= 15) dayScore = 50
-    else dayScore = 100 - (6.25 * (avgMinutes - 7))
+  // Calculate afectacion using simple ticket average (not daily aggregation)
+  const calculateSimpleAfectacion = (tickets) => {
+    if (!tickets || tickets.length === 0) return 0
     
-    totalScore += dayScore
-    dayCount++
-  })
-  
-  return dayCount > 0 ? totalScore / dayCount : 0
-}
+    let totalScore = 0
+    tickets.forEach(ticket => {
+      const score = getAfectacionScore(ticket.resolution_minutes)
+      totalScore += score
+    })
+    
+    return totalScore / tickets.length
+  }
+
+  // Calculate afectacion using daily aggregation (average of daily scores)
+  const calculateDailyScores = (tickets) => {
+    if (!tickets || tickets.length === 0) return 0
+    
+    const days = {}
+    
+    tickets.forEach(ticket => {
+      const completedDate = ticket.completed_at || ticket.closed_at
+      if (completedDate && ticket.status === 'cerrado') {
+        const date = new Date(completedDate)
+        const dateKey = date.toISOString().split('T')[0]
+        
+        if (!days[dateKey]) {
+          days[dateKey] = {
+            totalMinutes: 0,
+            ticketCount: 0,
+            tickets: []
+          }
+        }
+        days[dateKey].totalMinutes += (ticket.resolution_minutes || 0)
+        days[dateKey].ticketCount += 1
+        days[dateKey].tickets.push({
+          number: ticket.ticket_number,
+          minutes: ticket.resolution_minutes
+        })
+      }
+    })
+    
+    let totalScore = 0
+    let dayCount = 0
+    const dailyBreakdown = []
+    
+    Object.entries(days).forEach(([date, day]) => {
+      const avgMinutes = day.totalMinutes / day.ticketCount
+      let dayScore
+      if (avgMinutes <= 7) dayScore = 100
+      else if (avgMinutes >= 15) dayScore = 0
+      else dayScore = 100 - (6.25 * (avgMinutes - 7))
+      
+      dailyBreakdown.push({
+        date: date,
+        avgMinutes: avgMinutes.toFixed(1),
+        score: dayScore.toFixed(1),
+        ticketCount: day.ticketCount,
+        tickets: day.tickets
+      })
+      
+      totalScore += dayScore
+      dayCount++
+    })
+    
+    return {
+      average: dayCount > 0 ? totalScore / dayCount : 0,
+      dailyBreakdown: dailyBreakdown,
+      dayCount: dayCount
+    }
+  }
 
   const fetchDashboardData = async () => {
     try {
       console.log('Fetching dashboard data...')
       
       const [statsRes, linesRes, mechanicsRes] = await Promise.all([
-        axios.get('http://localhost:8000/supervisor/dashboard/stats'),
-        axios.get('http://localhost:8000/supervisor/lines/performance'),
-        axios.get('http://localhost:8000/supervisor/mechanics/performance'),
+        axios.get('http://localhost:8000/api/v1/supervisor/dashboard/stats'),
+        axios.get('http://localhost:8000/api/v1/supervisor/lines/performance'),
+        axios.get('http://localhost:8000/api/v1/supervisor/mechanics/performance'),
       ])
 
       console.log('Stats response:', statsRes.data)
@@ -92,8 +129,7 @@ const calculateDailyScores = (tickets) => {
       if (statsRes.data.success) {
         const dashboardStats = statsRes.data.stats || {}
         
-        // IMPORTANT: Get tickets from the correct location
-        // Try multiple possible locations where tickets might be
+        // Get tickets from the correct location
         let allTickets = []
         if (dashboardStats.tickets && Array.isArray(dashboardStats.tickets)) {
           allTickets = dashboardStats.tickets
@@ -104,18 +140,48 @@ const calculateDailyScores = (tickets) => {
         }
         
         console.log('Found tickets:', allTickets.length)
-        console.log('Sample ticket:', allTickets[0])
         
         const closedTickets = allTickets.filter(t => t.status === 'cerrado')
         console.log('Closed tickets:', closedTickets.length)
         
-        // Calculate afectacion using daily aggregation
-        const calculatedAfectacionRate = Math.round(calculateDailyScores(closedTickets))
-        console.log('Calculated afectacion rate:', calculatedAfectacionRate)
-        
-        // For debugging - log each closed ticket's resolution minutes
+        // ==========================================
+        // DEBUG: Log all closed tickets with dates
+        // ==========================================
+        console.log('=== DEBUG AFECTACION CALCULATION ===')
         closedTickets.forEach(ticket => {
-          console.log(`Ticket ${ticket.id}: ${ticket.resolution_minutes} min, completed_at: ${ticket.completed_at || ticket.closed_at}`)
+          const completedDate = ticket.completed_at || ticket.closed_at
+          const date = completedDate ? new Date(completedDate).toISOString().split('T')[0] : 'NO_DATE'
+          const score = getAfectacionScore(ticket.resolution_minutes)
+          console.log(`Ticket: ${ticket.ticket_number}, Minutes: ${ticket.resolution_minutes}, Date: ${date}, Score: ${score}%`)
+        })
+        
+        // Calculate both methods for comparison
+        const simpleRate = calculateSimpleAfectacion(closedTickets)
+        const dailyResult = calculateDailyScores(closedTickets)
+        
+        console.log('Simple average (per ticket):', simpleRate.toFixed(1) + '%')
+        console.log('Daily aggregation:', dailyResult.average.toFixed(1) + '%')
+        console.log('Days with data:', dailyResult.dayCount)
+        
+        if (dailyResult.dailyBreakdown.length > 0) {
+          console.log('Daily breakdown:')
+          dailyResult.dailyBreakdown.forEach(day => {
+            console.log(`  ${day.date}: ${day.ticketCount} tickets, avg ${day.avgMinutes} min → ${day.score}%`)
+            day.tickets.forEach(t => {
+              console.log(`    - ${t.number}: ${t.minutes} min`)
+            })
+          })
+        }
+        
+        // Use daily aggregation for consistency with requirements
+        const calculatedAfectacionRate = Math.round(dailyResult.average)
+        
+        // Store debug info for display (optional)
+        setDebugInfo({
+          simpleRate: Math.round(simpleRate),
+          dailyRate: calculatedAfectacionRate,
+          dayCount: dailyResult.dayCount,
+          dailyBreakdown: dailyResult.dailyBreakdown
         })
         
         setStats({
@@ -139,10 +205,13 @@ const calculateDailyScores = (tickets) => {
 
       if (linesRes.data.success) {
         const linesData = linesRes.data.lines || []
-        const updatedLines = linesData.map(line => ({
-          ...line,
-          afectacion_rate: Math.round(calculateDailyScores(line.tickets || []))
-        }))
+        const updatedLines = linesData.map(line => {
+          const dailyResult = calculateDailyScores(line.tickets || [])
+          return {
+            ...line,
+            afectacion_rate: Math.round(dailyResult.average)
+          }
+        })
         setLines(updatedLines)
       } else {
         console.error('Lines response error:', linesRes.data)
@@ -150,10 +219,13 @@ const calculateDailyScores = (tickets) => {
 
       if (mechanicsRes.data.success) {
         const mechanicsData = mechanicsRes.data.mechanics || []
-        const updatedMechanics = mechanicsData.map(mech => ({
-          ...mech,
-          afectacion_rate: Math.round(calculateDailyScores(mech.tickets || []))
-        }))
+        const updatedMechanics = mechanicsData.map(mech => {
+          const dailyResult = calculateDailyScores(mech.tickets || [])
+          return {
+            ...mech,
+            afectacion_rate: Math.round(dailyResult.average)
+          }
+        })
         setMechanics(updatedMechanics)
       } else {
         console.error('Mechanics response error:', mechanicsRes.data)
@@ -187,7 +259,7 @@ const calculateDailyScores = (tickets) => {
   }
 
   const getResolutionTimeColor = (minutes) => {
-    if (minutes < 7) return 'text-green-500'
+    if (minutes <= 7) return 'text-green-500'
     if (minutes <= 15) return 'text-yellow-500'
     return 'text-red-500'
   }
@@ -213,6 +285,13 @@ const calculateDailyScores = (tickets) => {
             Monitoreo global de producción
           </p>
         </div>
+
+        {/* Debug Panel - Hidden by default, shows in console */}
+        {debugInfo && process.env.NODE_ENV === 'development' && (
+          <div className="mb-4 p-3 bg-gray-100 rounded-xl text-xs font-mono hidden">
+            <p>Debug: Simple avg: {debugInfo.simpleRate}% | Daily avg: {debugInfo.dailyRate}% | Days: {debugInfo.dayCount}</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-2 mb-4">
           <MetricCard
@@ -244,8 +323,9 @@ const calculateDailyScores = (tickets) => {
               KPIs Globales - Semana
             </h2>
             <div className="flex gap-1 text-[10px]">
-              <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-700">7 min = 100%</span>
-              <span className="px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700">15 min = 50%</span>
+              <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-700">≤7 min = 100%</span>
+              <span className="px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700">7-15 min = fórmula</span>
+              <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700">≥15 min = 0%</span>
             </div>
           </div>
           <div className="space-y-3">
@@ -253,7 +333,7 @@ const calculateDailyScores = (tickets) => {
               label="Afectación (Tiempo de Resolución Diario)"
               value={kpis.afectacion}
               color="bg-blue-600"
-              detail="Promedio diario: Score = 100 - 6.25 × (avg_minutos - 7)"
+              detail="Promedio diario: ≤7 min=100%, 7-15 min=100-6.25×(min-7), ≥15 min=0%"
             />
             <KPIBar
               label="Cambios de Estilo"
@@ -327,7 +407,7 @@ const calculateDailyScores = (tickets) => {
                     {ticket.resolution_minutes && (
                       <span className={`ml-auto text-xs font-bold ${getResolutionTimeColor(ticket.resolution_minutes)}`}>
                         {ticket.resolution_minutes} min
-                        {ticket.resolution_minutes < 7 ? ' ✓' : ticket.resolution_minutes <= 15 ? ' ⚠' : ' ✗'}
+                        {ticket.resolution_minutes <= 7 ? ' ✓' : ticket.resolution_minutes <= 15 ? ' ⚠' : ' ✗'}
                       </span>
                     )}
                   </div>

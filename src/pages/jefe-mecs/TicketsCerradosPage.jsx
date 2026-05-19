@@ -24,7 +24,7 @@ export default function TicketsCerradosPage() {
   const fetchTickets = async () => {
     try {
       const response = await axios.get(
-        'http://localhost:8000/jefe-mecanicos/tickets/completados'
+        'http://localhost:8000/api/v1/jefe-mecanicos/tickets/completados'
       )
 
       console.log('Completed/Validated tickets:', response.data)

@@ -84,7 +84,7 @@ export default function NuevaFallaPage() {
       }
 
       const response = await fetch(
-        'http://127.0.0.1:8000/tickets/falla-equipo',
+        'http://localhost:8000/api/v1/tickets/falla-equipo',
         {
           method: 'POST',
           body: form,
