@@ -76,7 +76,7 @@ export default function Sidebar({
           p-5 border-b border-slate-700
         ">
           <div>
-            <h1 className="text-xl font-bold">
+            <h1  onClick={handleLogout} className="text-xl font-bold">
               Skyrina
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
