@@ -506,7 +506,7 @@ export default function TicketDetailPage() {
           {!isCambioEstilo && ticket.image_url && (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               <img 
-                src={`${ticket.image_url}`} 
+                src={`/${ticket.image_url}`} 
                 alt="machine" 
                 className="w-full h-48 object-cover"
               />
