@@ -51,7 +51,7 @@ export default function TicketDetailPage() {
   const fetchTicket = async () => {
     try {
       const response = await axios.get(
-        `http://localhost:8000/api/v1/tickets/${id}`
+        `/api/v1/tickets/${id}`
       )
       console.log('Ticket details:', response.data)
 
@@ -91,7 +91,7 @@ export default function TicketDetailPage() {
       }
 
       const response = await axios.post(
-        `http://localhost:8000/api/v1/mecanico/ticket/start/${id}`
+        `/api/v1/mecanico/ticket/start/${id}`
       )
       
       console.log('Start ticket response:', response.data)
@@ -130,7 +130,7 @@ export default function TicketDetailPage() {
     
     try {
       const response = await axios.post(
-        `http://localhost:8000/api/v1/mecanico/ticket/complete/${id}`,
+        `/api/v1/mecanico/ticket/complete/${id}`,
         {
           solution_description: solutionDescription
         }
@@ -506,7 +506,7 @@ export default function TicketDetailPage() {
           {!isCambioEstilo && ticket.image_url && (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               <img 
-                src={`http://localhost:8000/api/v1/${ticket.image_url}`} 
+                src={`/${ticket.image_url}`} 
                 alt="machine" 
                 className="w-full h-48 object-cover"
               />

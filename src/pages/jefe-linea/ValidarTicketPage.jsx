@@ -22,7 +22,7 @@ export default function ValidarTicketPage() {
   const fetchTicket = async () => {
     try {
       const response = await axios.get(
-        `http://localhost:8000/api/v1/tickets/${ticketId}`
+        `/api/v1/tickets/${ticketId}`
       )
       console.log('Ticket for validation:', response.data)
       setTicket(response.data.ticket)
@@ -78,7 +78,7 @@ export default function ValidarTicketPage() {
       }
 
       const response = await axios.post(
-        `http://localhost:8000/api/v1/tickets/${ticketId}/validate`,
+        `/api/v1/tickets/${ticketId}/validate`,
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' }
@@ -112,7 +112,7 @@ export default function ValidarTicketPage() {
       }
 
       const response = await axios.post(
-        `http://localhost:8000/api/v1/tickets/${ticketId}/close`,
+        `/api/v1/tickets/${ticketId}/close`,
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' }

@@ -26,7 +26,7 @@ export default function HomePage() {
       }
 
       const response = await axios.get(
-        `http://localhost:8000/api/v1/tickets/linea/${user.linea_id}`
+        `/api/v1/tickets/linea/${user.linea_id}`
       )
 
       const allTickets = response.data.tickets || []
@@ -63,7 +63,7 @@ export default function HomePage() {
       formData.append('comentario', 'Ticket cerrado por jefe de línea')
 
       const response = await axios.post(
-        `http://localhost:8000/api/v1/tickets/${ticketId}/close`,
+        `/api/v1/tickets/${ticketId}/close`,
         formData,
         { headers: { 'Content-Type': 'multipart/form-data' } }
       )

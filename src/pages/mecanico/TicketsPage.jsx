@@ -18,7 +18,7 @@ export default function TicketsPage() {
       const user = JSON.parse(localStorage.getItem('user'))
       setMechanic(user)
       const response = await axios.get(
-        `http://localhost:8000/api/v1/mecanico/tickets/${user.id}`
+        `/api/v1/mecanico/tickets/${user.id}`
       )
       console.log(response.data)
       setTickets(response.data.tickets || [])

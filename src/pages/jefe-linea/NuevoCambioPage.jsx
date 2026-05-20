@@ -56,7 +56,7 @@ export default function NuevoCambioPage() {
       }
 
       const response = await fetch(
-        'http://localhost:8000/api/v1/tickets/cambio-estilo',
+        '/api/v1/tickets/cambio-estilo',
         {
           method: 'POST',
           body: form,

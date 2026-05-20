@@ -57,7 +57,7 @@ export default function BonoPage() {
       }
 
       const ticketsResponse = await axios.get(
-        `http://localhost:8000/api/v1/mecanico/tickets/${user.id}`
+        `/api/v1/mecanico/tickets/${user.id}`
       )
       
       const tickets = ticketsResponse.data.tickets || []

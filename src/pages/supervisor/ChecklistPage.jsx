@@ -17,7 +17,7 @@ export default function ChecklistPage() {
 
   const fetchChecklist = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/v1/supervisor/checklist/today')
+      const response = await axios.get('/api/v1/supervisor/checklist/today')
       if (response.data.success) {
         setChecklist(response.data.checklist)
         setSubmitted(response.data.checklist.completed || false)
@@ -31,7 +31,7 @@ export default function ChecklistPage() {
 
   const fetchHistory = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/v1/supervisor/checklist/history')
+      const response = await axios.get('/api/v1/supervisor/checklist/history')
       if (response.data.success) {
         setHistory(response.data.history)
       }
@@ -55,7 +55,7 @@ export default function ChecklistPage() {
     setSubmitting(true)
     try {
       const response = await axios.post(
-        'http://localhost:8000/api/v1/supervisor/checklist/submit',
+        '/api/v1/supervisor/checklist/submit',
         { items: checklist.items }
       )
       if (response.data.success) {

@@ -119,9 +119,9 @@ export default function SupervisorHomePage() {
       console.log('Fetching dashboard data...')
       
       const [statsRes, linesRes, mechanicsRes] = await Promise.all([
-        axios.get('http://localhost:8000/api/v1/supervisor/dashboard/stats'),
-        axios.get('http://localhost:8000/api/v1/supervisor/lines/performance'),
-        axios.get('http://localhost:8000/api/v1/supervisor/mechanics/performance'),
+        axios.get('/api/v1/supervisor/dashboard/stats'),
+        axios.get('/api/v1/supervisor/lines/performance'),
+        axios.get('/api/v1/supervisor/mechanics/performance'),
       ])
 
       console.log('Stats response:', statsRes.data)

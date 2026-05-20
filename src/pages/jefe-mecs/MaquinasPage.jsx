@@ -21,7 +21,7 @@ export default function MaquinasPage() {
   const fetchMachines = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`http://localhost:8000/api/v1/jefe-mecanicos/maquinas`, {
+      const response = await fetch(`/api/v1/jefe-mecanicos/maquinas`, {
         headers: getAuthHeaders(),
       })
       
@@ -56,7 +56,7 @@ export default function MaquinasPage() {
     if (!newMachine.trim()) return
 
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/jefe-mecanicos/maquinas?nombre=${encodeURIComponent(newMachine.trim())}`, {
+      const response = await fetch(`/api/v1/jefe-mecanicos/maquinas?nombre=${encodeURIComponent(newMachine.trim())}`, {
         method: 'POST',
         headers: getAuthHeaders(),
       })
@@ -78,7 +78,7 @@ export default function MaquinasPage() {
 
   const toggleMachineStatus = async (id) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/jefe-mecanicos/maquinas/${id}/toggle`, {
+      const response = await fetch(`/api/v1/jefe-mecanicos/maquinas/${id}/toggle`, {
         method: 'PUT',
         headers: getAuthHeaders(),
       })
@@ -104,7 +104,7 @@ export default function MaquinasPage() {
   const deleteMachine = async (id, nombre) => {
     if (window.confirm(`¿Eliminar la máquina "${nombre}"?`)) {
       try {
-        const response = await fetch(`http://localhost:8000/api/v1/jefe-mecanicos/maquinas/${id}`, {
+        const response = await fetch(`/api/v1/jefe-mecanicos/maquinas/${id}`, {
           method: 'DELETE',
           headers: getAuthHeaders(),
         })

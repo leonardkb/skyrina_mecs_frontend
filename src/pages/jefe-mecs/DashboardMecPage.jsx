@@ -26,7 +26,7 @@ export default function DashboardMecPage() {
   const fetchTickets = async () => {
     try {
       const response = await axios.get(
-        'http://localhost:8000/api/v1/jefe-mecanicos/tickets/pendientes'
+        '/api/v1/jefe-mecanicos/tickets/pendientes'
       )
       console.log('Active tickets response:', response.data)
       const activeTickets = response.data.tickets || []
@@ -40,7 +40,7 @@ export default function DashboardMecPage() {
 
   const fetchMechanics = async () => {
   try {
-    const response = await axios.get('http://localhost:8000/api/v1/auth/users')
+    const response = await axios.get('/api/v1/auth/users')
     console.log('Users response:', response.data)
 
     // Debug: Log all roles to see what you're getting
@@ -71,7 +71,7 @@ export default function DashboardMecPage() {
       mechanicsList.map(async (mechanic) => {
         try {
           const ticketsResponse = await axios.get(
-            `http://localhost:8000/api/v1/jefe-mecanicos/tickets/mecanico/${mechanic.id}`
+            `/api/v1/jefe-mecanicos/tickets/mecanico/${mechanic.id}`
           )
           return {
             ...mechanic,
@@ -111,7 +111,7 @@ export default function DashboardMecPage() {
   const fetchCompletedTickets = async () => {
     try {
       const response = await axios.get(
-        'http://localhost:8000/api/v1/jefe-mecanicos/tickets/completados'
+        '/api/v1/jefe-mecanicos/tickets/completados'
       )
       console.log('All completed/validated/closed tickets response:', response.data)
       const allTickets = response.data.tickets || []
@@ -181,7 +181,7 @@ export default function DashboardMecPage() {
       const user = JSON.parse(localStorage.getItem('user'))
       
       const response = await axios.post(
-        'http://localhost:8000/api/v1/jefe-mecanicos/tickets/asignar',
+        '/api/v1/jefe-mecanicos/tickets/asignar',
         null,
         {
           params: {
@@ -207,7 +207,7 @@ export default function DashboardMecPage() {
       const user = JSON.parse(localStorage.getItem('user'))
       
       await axios.post(
-        'http://localhost:8000/api/v1/jefe-mecanicos/tickets/reasignar',
+        '/api/v1/jefe-mecanicos/tickets/reasignar',
         null,
         {
           params: {
@@ -230,7 +230,7 @@ export default function DashboardMecPage() {
   const changeMechanicLocation = async (mechanicId, location) => {
     try {
       await axios.post(
-        'http://localhost:8000/api/v1/jefe-mecanicos/mecanicos/location',
+        '/api/v1/jefe-mecanicos/mecanicos/location',
         null,
         {
           params: {

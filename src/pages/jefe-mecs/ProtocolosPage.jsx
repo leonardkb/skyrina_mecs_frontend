@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import JefeMecLayout from '../../components/layout/JefeMecLayout'
 
 // Direct API configuration
-const API_BASE_URL = 'http://localhost:8000' // Change this to your backend URL
+const API_BASE_URL = '/api/v1' // Change this to your backend URL
 
 // Helper function for API calls
 const apiRequest = async (endpoint, options = {}) => {

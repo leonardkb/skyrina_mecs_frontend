@@ -22,7 +22,7 @@ export default function FallasPage() {
 
       const response =
         await axios.get(
-          'http://localhost:8000/api/v1/jefe-mecanicos/tickets/pendientes'
+          '/api/v1/jefe-mecanicos/tickets/pendientes'
         )
 
       const filtered =
