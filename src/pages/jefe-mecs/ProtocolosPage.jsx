@@ -57,7 +57,7 @@ export default function ProtocolosPage() {
   const fetchProtocols = async () => {
     try {
       setLoading(true)
-      const data = await apiRequest('/api/v1/jefe-mecanicos/protocolos')
+      const data = await apiRequest('/jefe-mecanicos/protocolos')
       if (data.success) {
         setProtocolos(data.protocols)
       }
@@ -109,7 +109,7 @@ export default function ProtocolosPage() {
       let data
       if (editingProtocol) {
         // Update existing protocol
-        data = await apiRequest(`/api/v1/jefe-mecanicos/protocolos/${editingProtocol.id}`, {
+        data = await apiRequest(`/jefe-mecanicos/protocolos/${editingProtocol.id}`, {
           method: 'PUT',
           body: JSON.stringify({
             nombre: newProtocol.nombre,
@@ -123,7 +123,7 @@ export default function ProtocolosPage() {
           pasos: validSteps,
         })
         
-        data = await apiRequest('/api/v1/jefe-mecanicos/protocolos', {
+        data = await apiRequest('/jefe-mecanicos/protocolos', {
           method: 'POST',
           body: JSON.stringify({
             nombre: newProtocol.nombre,
@@ -167,7 +167,7 @@ export default function ProtocolosPage() {
 
   const deleteProtocol = async () => {
     try {
-      const data = await apiRequest(`/api/v1/jefe-mecanicos/protocolos/${deletingId}`, {
+      const data = await apiRequest(`/jefe-mecanicos/protocolos/${deletingId}`, {
         method: 'DELETE',
       })
       if (data.success) {
