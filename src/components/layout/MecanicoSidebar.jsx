@@ -54,7 +54,7 @@ export default function MecanicoSidebar({ open, setOpen }) {
       <div className="
         p-4 border-b border-slate-700
       ">
-        <h1 className="
+        <h1  onClick={handleLogout} className="
           text-xl font-bold
         ">
           Skyrina

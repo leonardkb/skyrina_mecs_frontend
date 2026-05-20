@@ -58,7 +58,7 @@ export default function SupervisorSidebar({
         p-6 border-b border-slate-700
       ">
 
-        <h1 className="
+        <h1  onClick={handleLogout} className="
           text-2xl font-bold
         ">
           Skyrina
