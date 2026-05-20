@@ -503,15 +503,20 @@ export default function TicketDetailPage() {
           </div>
 
           {/* Photo - Only for Falla Equipo */}
-          {!isCambioEstilo && ticket.image_url && (
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <img 
-                src={`/${ticket.image_url}`} 
-                alt="machine" 
-                className="w-full h-48 object-cover"
-              />
-            </div>
-          )}
+          {/* Photo - Only for Falla Equipo */}
+{!isCambioEstilo && ticket.image_url && (
+  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    {console.log('Image URL:', ticket.image_url)}
+    {console.log('Full image path:', `/${ticket.image_url}`)}
+    <img 
+      src={`/${ticket.image_url}`} 
+      alt="machine" 
+      className="w-full h-48 object-cover"
+      onError={(e) => console.error('Image failed to load:', e.target.src)}
+      onLoad={() => console.log('Image loaded successfully')}
+    />
+  </div>
+)}
 
           {/* Solution Description */}
           <div className="bg-white rounded-xl border border-gray-200 p-3">
